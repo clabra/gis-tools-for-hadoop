@@ -1,0 +1,5 @@
+SELECT counties.name, count(*) cnt FROM counties
+JOIN earthquakes
+WHERE ST_Contains(counties.boundaryshape, ST_Point(earthquakes.longitude, earthquakes.latitude))
+GROUP BY counties.name
+ORDER BY cnt desc;
