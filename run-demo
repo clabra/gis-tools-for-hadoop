@@ -16,7 +16,7 @@ STORED AS INPUTFORMAT 'com.esri.json.hadoop.EnclosedEsriJsonInputFormat'
 OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';
 
 LOAD DATA INPATH '/user/cloudera/earthquake-demo/earthquake-data/earthquakes.csv' OVERWRITE INTO TABLE earthquakes;
-LOAD DATA INPATH '/user/cloudera/earthquake-demo/counties-data/california-counties.json' OVERWRITE INTO TABLE counties;
+LOAD DATA INPATH '/user/cloudera/earthquake-demo/california-data/california-counties.json' OVERWRITE INTO TABLE counties;
 
 SELECT counties.name, count(*) cnt FROM counties
 JOIN earthquakes
