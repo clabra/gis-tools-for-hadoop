@@ -1,4 +1,4 @@
-add jar /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/lib/esri-geometry-api-2.0.0.jar /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/lib/spatial-sdk-hive-2.0.0.jar /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/lib/spatial-sdk-json-2.0.0.jar; 
+add jar /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/lib/esri-geometry-api-2.0.0.jar /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/lib/spatial-sdk-hive-2.1.0.jar /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/lib/spatial-sdk-json-2.1.0.jar; 
   
 create temporary function ST_Point as 'com.esri.hadoop.hive.ST_Point'; 
 create temporary function ST_Contains as 'com.esri.hadoop.hive.ST_Contains'; 
@@ -15,8 +15,8 @@ ROW FORMAT SERDE 'com.esri.hadoop.hive.serde.EsriJsonSerDe'
 STORED AS INPUTFORMAT 'com.esri.json.hadoop.EnclosedEsriJsonInputFormat'
 OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';
 
-LOAD DATA INPATH 'earthquake-demo/earthquake-data/earthquakes.csv' OVERWRITE INTO TABLE earthquakes;
-LOAD DATA INPATH 'earthquake-demo/counties-data/california-counties.json' OVERWRITE INTO TABLE counties;
+LOAD DATA INPATH '/user/cloudera/earthquake-demo/earthquake-data/earthquakes.csv' OVERWRITE INTO TABLE earthquakes;
+LOAD DATA INPATH '/user/cloudera/earthquake-demo/counties-data/california-counties.json' OVERWRITE INTO TABLE counties;
 
 SELECT counties.name, count(*) cnt FROM counties
 JOIN earthquakes
