@@ -1,90 +1,120 @@
-gis-tools-for-hadoop
-====================
-![2013 NYC Taxi data aggregated](https://github.com/Esri/gis-tools-for-hadoop/blob/master/header.PNG?raw=true)
-The [__GIS Tools for Hadoop__](http://esri.github.io/gis-tools-for-hadoop/) are a collection of GIS tools that leverage 
-the [Spatial Framework for Hadoop](https://github.com/Esri/spatial-framework-for-hadoop)
-for spatial analysis of big data.  The tools make use of 
-the [Geoprocessing Tools for Hadoop](https://github.com/Esri/geoprocessing-tools-for-hadoop) toolbox,
-to provide access to the Hadoop system from the ArcGIS Geoprocessing environment. 
+# Aggregation Sample for Hive
+Make sure you are in the git folder - if you just came from the beginner tutorial, it will look like this: `[root@sandbox esri-git]#`.
 
+Make an earthquake demo directory in hadoop
+```bash
+hadoop fs -mkdir earthquake-demo
+```
 
-## What's New
+hadoop fs -put /path/on/localsystem /path/to/hdf
+```bash
+hadoop fs -put gis-tools-for-hadoop/samples/data/counties-data earthquake-demo
+hadoop fs -put gis-tools-for-hadoop/samples/data/earthquake-data earthquake-demo
+```
+Check that it worked:
+```bash
+hadoop fs -ls earthquake-demo
+```
 
-* [Sample: direct use of Enclosed and Unenclosed Esri- and Geo- JSON InputFormats](samples/json-mr)
-* Update: use updated non-deprecated names `EsriJsonSerDe` and `EnclosedEsriJsonInputFormat` in samples after having added support for GeoJSON
-* [Tutorial: An Introduction for Beginners](https://github.com/Esri/gis-tools-for-hadoop/wiki/GIS-Tools-for-Hadoop-for-Beginners)
+Start the Hive Command line (Hive CLI).  If you do not have Hive installed, see [Hive Installation](https://cwiki.apache.org/confluence/display/Hive/GettingStarted#GettingStarted-InstallationandConfiguration) - this sample requires Hive 0.10.0 or above (or Hive 0.9.0 patched with [HIVE-2736](https://issues.apache.org/jira/browse/HIVE-2736)). 
 
+> **Note**: If you are having issues with Hive - See [here](https://github.com/Esri/spatial-framework-for-hadoop/wiki/ST_Geometry-for-Hive-Compatibility-with-Hive-Versions) for a complete list of hive compatibilities with ST_Geoemtry.
 
-## Features
+```bash
+# use '-S' for silent mode
+hive
+```
 
-* Sample tools that demonstrate full stack implementations of all the resources provided to solve GIS problems 
-using Hadoop
+> This sample assumes that Hive is installed on a local cluster.  If you are using a remote cluster, you will need to move your files to HDFS and change table definitions as needed.
 
+Add the required external libraries and create temporary functions for the geometry api calls.
+```bash
+add jar
+  ${env:HOME}/esri-git/gis-tools-for-hadoop/samples/lib/esri-geometry-api-2.0.0.jar
+  ${env:HOME}/esri-git/gis-tools-for-hadoop/samples/lib/spatial-sdk-hive-2.0.0.jar
+  ${env:HOME}/esri-git/gis-tools-for-hadoop/samples/lib/spatial-sdk-json-2.0.0.jar;
+  
+create temporary function ST_Point as 'com.esri.hadoop.hive.ST_Point';
+create temporary function ST_Contains as 'com.esri.hadoop.hive.ST_Contains';
+```
 
+> This is a minimum implementation the ST_Geometry user defined functions found in the [Hive Spatial Library](https://github.com/Esri/spatial-framework-for-hadoop/wiki/Hive-Spatial).  The full list of functions is available in the [linked repository](https://github.com/Esri/spatial-framework-for-hadoop/wiki/UDF-Documentation).
 
-![GIS Tools Breakdown](http://esri.github.com/gis-tools-for-hadoop/images/gis-tools-breakdown.png)
+Drop the tables named counties and earthquakes:
+```bash
+drop table earthquakes;
+drop table counties;
+```
+Define a schema for the [earthquake data](https://github.com/Esri/gis-tools-for-hadoop/tree/master/samples/data/earthquake-data).  The earthquake data is in CSV (comma-separated values) format, which is natively supported by Hive.
 
-**Resources for building custom tools**
+```sql
+CREATE TABLE earthquakes (earthquake_date STRING, latitude DOUBLE, longitude DOUBLE, depth DOUBLE, magnitude DOUBLE,
+    magtype string, mbstations string, gap string, distance string, rms string, source string, eventid string)
+ROW FORMAT DELIMITED FIELDS TERMINATED BY ','
+STORED AS TEXTFILE;
+```
 
-* [Esri Geometry API Java](https://github.com/Esri/geometry-api-java) - Java geometry library for spatial data 
-processing 
-* [Spatial Framework for Hadoop](https://github.com/Esri/spatial-framework-for-hadoop) 
-  * Java helper utilities for Hadoop developers
-  * Hive spatial user-defined functions 
-* [Geoprocessing Tools](https://github.com/Esri/geoprocessing-tools-for-hadoop) - ArcGIS Geoprocessing tools 
-for Hadoop
+Define a schema for the [California counties data](https://github.com/Esri/gis-tools-for-hadoop/tree/master/samples/data/counties-data).  The counties data is stored as [Enclosed JSON](https://github.com/Esri/spatial-framework-for-hadoop/wiki/JSON-Formats).  
 
+```sql
+CREATE TABLE counties (Area string, Perimeter string, State string, County string, Name string, BoundaryShape binary)                  
+ROW FORMAT SERDE 'com.esri.hadoop.hive.serde.EsriJsonSerDe'
+STORED AS INPUTFORMAT 'com.esri.json.hadoop.EnclosedEsriJsonInputFormat'
+OUTPUTFORMAT 'org.apache.hadoop.hive.ql.io.HiveIgnoreKeyTextOutputFormat';
+```
 
-## Instructions
+Load data into the respective tables:
+```sql
+LOAD DATA INPATH 'earthquake-demo/earthquake-data/earthquakes.csv' OVERWRITE INTO TABLE earthquakes;
+LOAD DATA INPATH 'earthquake-demo/counties-data/california-counties.json' OVERWRITE INTO TABLE counties;
+```
 
-Start out by navigating to [samples](https://github.com/Esri/gis-tools-for-hadoop/tree/master/samples) and 
-following the instructions provided with each sample.[There are also tutorials](https://github.com/Esri/gis-tools-for-hadoop/wiki) for using the GP tools and aggregation methods.
+Run the demo analysis:
 
-## Requirements
+```sql
+SELECT counties.name, count(*) cnt FROM counties
+JOIN earthquakes
+WHERE ST_Contains(counties.boundaryshape, ST_Point(earthquakes.longitude, earthquakes.latitude))
+GROUP BY counties.name
+ORDER BY cnt desc;
+```
 
-Requirements will differ depending on the needs of each tool. At a minimum, you will need:
+Your results should look like this:
 
-* Access to an [Apache Hadoop](http://hadoop.apache.org) cluster
-* [ArcGIS for Desktop](http://www.esri.com/software/arcgis/arcgis-for-desktop) or 
-[Server](http://www.esri.com/software/arcgis/arcgisserver) for geoprocessing and visualization
+```
+Kern  36
+San Bernardino	35
+Imperial	28
+Inyo	20
+Los Angeles	18
+Riverside	14
+Monterey	14
+Santa Clara	12
+Fresno	11
+San Benito	11
+San Diego	7
+Santa Cruz	5
+San Luis Obispo	3
+Ventura	3
+Orange	2
+San Mateo	1
+```
 
-Other requirements may include:
+===
 
-* [Apache Hive](http://hive.apache.org/) in order to run Hive queries
-* [Apache Oozie Workflow Scheduler](http://oozie.apache.org/) for workflow scheduling
+## run-sample.sql
 
-Additional requirements will be spelled out by individual tools.
+Alternatively, you can run the entire sample using `run-sample.sql`.
 
-## Resources
+First move to the Hive sample directory and run Hive.
 
-* [GeoData Blog on the ArcGIS Blogs](http://blogs.esri.com/esri/arcgis/author/jonmurphy/)
-* [Big Data Place on GeoNet](https://geonet.esri.com/groups/big-data)
-* [ArcGIS Geodata Resource Center]( http://resources.arcgis.com/en/communities/geodata/)
-* [ArcGIS Blog](http://blogs.esri.com/esri/arcgis/)
-* [twitter@esri](http://twitter.com/esri)
+```bash
+cd ~/esri-git/gis-tools-for-hadoop/samples/point-in-polygon-aggregation-hive
+hive -S
+```
 
-## Issues
+Now run the sample sql file from within Hive
 
-Find a bug or want to request a new feature?  Please let us know by submitting an issue.
-
-## Contributing
-
-Esri welcomes contributions from anyone and everyone. Please see our [guidelines for contributing](https://github.com/esri/contributing)
-
-## Licensing
-Copyright 2013-2019 Esri
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at:
-
-   http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
-A copy of the license is available in the repository's 
-[license.txt](https://raw.github.com/Esri/gis-tools-for-hadoop/master/license.txt) file.
+```bash
+source run-sample.sql;
+```
