@@ -1,0 +1,1 @@
+Unable to find class: com.esri.json.hadoop.EnclosedEsriJsonInputFormat
