@@ -1,2 +1,0 @@
-hadoop fs -put /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/data/counties-data /user/cloudera/earthquake-demo
-hadoop fs -put /home/cloudera/workspace/gis/gis-tools-for-hadoop/samples/data/earthquake-data /user/cloudera/earthquake-demo
